@@ -1,43 +1,10 @@
-module Day01 exposing (highestCalories, topNCalories, rawData)
-
-import List.Extra as LX
-
-highestCalories : String -> String 
-highestCalories data =
-    data
-        |> parseData
-        |> List.head
-        |> Maybe.withDefault 0
-        |> String.fromInt
-
-
-topNCalories : String -> Int -> String 
-topNCalories data n =
-    data
-    |> parseData
-    |> LX.splitAt n 
-    |> Tuple.first
-    |> List.sum
-    |> String.fromInt
+module Day01 exposing (..)
     
 parseInts : List String -> Int
 parseInts list =
     list
-        |> List.map (\s -> Maybe.withDefault 0 (String.toInt s))
+        |> List.filterMap String.toInt
         |> List.sum
-
-
-descending : comparable -> comparable -> Order
-descending a b =
-    case compare a b of
-        LT ->
-            GT
-
-        EQ ->
-            EQ
-
-        GT ->
-            LT
 
 
 parseData : String -> List Int
@@ -45,11 +12,27 @@ parseData data =
     data
         |> String.trim
         |> String.split "\n\n"
-        |> List.map (\s -> String.split "\n" s)
-        |> List.map (\l -> parseInts l)
-        |> List.sortWith descending
+        |> List.map String.words
+        |> List.map parseInts
 
 
+part1: Int
+part1 =
+    rawData 
+    |> parseData 
+    |> List.maximum
+    |> Maybe.withDefault 0
+    
+
+part2: Int
+part2 =
+    rawData 
+    |> parseData 
+    |> List.sort
+    |> List.reverse
+    |> List.take 3
+    |> List.sum
+    
 rawData : String
 rawData =
     """
