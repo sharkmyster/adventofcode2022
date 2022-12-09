@@ -1,8 +1,6 @@
 module Day06 exposing (..)
 
-import List.Extra as LX
 import Set
-
 
 markerSize : Int
 markerSize =
