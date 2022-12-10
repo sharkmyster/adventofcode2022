@@ -1,5 +1,6 @@
 module Day01 exposing (..)
-    
+
+
 parseInts : List String -> Int
 parseInts list =
     list
@@ -16,23 +17,24 @@ parseData data =
         |> List.map parseInts
 
 
-part1: Int
+part1 : Int
 part1 =
-    rawData 
-    |> parseData 
-    |> List.maximum
-    |> Maybe.withDefault 0
-    
+    rawData
+        |> parseData
+        |> List.maximum
+        |> Maybe.withDefault 0
 
-part2: Int
+
+part2 : Int
 part2 =
-    rawData 
-    |> parseData 
-    |> List.sort
-    |> List.reverse
-    |> List.take 3
-    |> List.sum
-    
+    rawData
+        |> parseData
+        |> List.sort
+        |> List.reverse
+        |> List.take 3
+        |> List.sum
+
+
 rawData : String
 rawData =
     """

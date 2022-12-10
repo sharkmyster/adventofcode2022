@@ -1,6 +1,5 @@
 module Day02 exposing (..)
 
-import Dict exposing (Dict)
 
 type Hand
     = Rock
@@ -14,22 +13,55 @@ type Outcome
     | Draw
 
 
-handMap : Dict String Hand
-handMap =
-    Dict.fromList [ ( "A", Rock ), ( "B", Paper ), ( "C", Scissors ), ( "X", Rock ), ( "Y", Paper ), ( "Z", Scissors ) ]
-
-
-desiredResult : String -> Outcome
-desiredResult instruction =
-    case instruction of
-        "X" ->
-            Lose
-
-        "Z" ->
-            Win
+listToTuple2 : List a -> Maybe ( a, a )
+listToTuple2 list =
+    case list of
+        [ a, b ] ->
+            Just ( a, b )
 
         _ ->
-            Draw
+            Nothing
+            
+            
+handMap : String -> Maybe Hand
+handMap code =
+    case code of
+        "A" ->
+            Just Rock
+
+        "B" ->
+            Just Paper
+
+        "C" ->
+            Just Scissors
+
+        "X" ->
+            Just Rock
+
+        "Y" ->
+            Just Paper
+
+        "Z" ->
+            Just Scissors
+
+        _ ->
+            Nothing
+
+
+getIntendedOutcome: String -> Maybe Outcome
+getIntendedOutcome instruction =
+    case instruction of
+        "X" ->
+            Just Lose
+
+        "Z" ->
+            Just Win
+
+        "Y" ->
+            Just Draw
+
+        _ ->
+            Nothing
 
 
 scoreHand : Hand -> Int
@@ -45,7 +77,7 @@ scoreHand hand =
             3
 
 
-moveCalculator : (Hand, Outcome) -> Hand
+moveCalculator : ( Hand, Outcome ) -> Hand
 moveCalculator round =
     case round of
         ( Rock, Win ) ->
@@ -67,44 +99,9 @@ moveCalculator round =
             Paper
 
         ( _, _ ) ->
-           Tuple.first round 
+            Tuple.first round
 
-
-parseLetter : String -> Maybe Hand
-parseLetter letter =
-    Dict.get letter handMap
-
-
-listToTuple2 : List a -> Maybe ( a, a )
-listToTuple2 list =
-    case list of
-        [ a, b ] ->
-            Just ( a, b )
-
-        _ ->
-            Nothing
-
-parseRound : String -> ( Hand, Hand )
-parseRound item =
-    item
-        |> String.split " "
-        |> List.map (\l -> Maybe.withDefault Rock (parseLetter l))
-        |> listToTuple2
-        |> Maybe.withDefault ( Rock, Rock )
-
-
-parseRound2 : String -> (Hand, Hand) 
-parseRound2 item =
-    item
-        |> String.split " "
-        |> listToTuple2
-        |> Maybe.withDefault ("A", "X")
-        |> Tuple.mapFirst (\l -> Maybe.withDefault Rock (parseLetter l)) 
-        |> Tuple.mapSecond desiredResult
-        |> (\(a, b) -> (a, moveCalculator (a, b)))
-
-
-calculateWin :  (Hand, Hand) -> Outcome
+calculateWin : ( Hand, Hand ) -> Outcome
 calculateWin round =
     case round of
         ( Rock, Paper ) ->
@@ -127,13 +124,12 @@ calculateWin round =
 
         ( _, _ ) ->
             Draw
-
-
+            
 scoreRound : ( Hand, Hand ) -> Int
 scoreRound ( opponentHand, yourHand ) =
     let
         outcome =
-            calculateWin (opponentHand , yourHand)
+            calculateWin ( opponentHand, yourHand )
 
         handValue =
             scoreHand yourHand
@@ -148,22 +144,57 @@ scoreRound ( opponentHand, yourHand ) =
         Lose ->
             handValue
 
+parseRound : List String -> Maybe ( Hand, Hand )
+parseRound item =
+    let 
+        round = item
+            |> List.map handMap 
+    in
+    case round of
+        [Just a, Just b] -> Just (a , b)
+        _ -> Nothing
+        
 
-parseData : List String
+
+parseRoundWithCode : (String, String) -> Maybe ( Hand, Hand )
+parseRoundWithCode (them, us) =
+    let
+       opponentHand = handMap them
+       intendedOutcome = getIntendedOutcome us 
+    in
+    case (opponentHand, intendedOutcome )  of
+        ( Just theirHand, Just outcome) -> 
+            let
+                necessaryMove = moveCalculator (theirHand, outcome)
+            in
+                Just (theirHand, necessaryMove )
+            
+        _ -> Nothing
+        
+
+parseData : List (List String)
 parseData =
     rawData
         |> String.trim
-        |> String.split "\n"
+        |> String.lines
+        |> List.map String.words
 
 
-calculateScore : Int
-calculateScore =
+part1 : Int
+part1 = 
     parseData
-        |> List.map parseRound2
+        |> List.filterMap parseRound
         |> List.map scoreRound
         |> List.sum
 
-
+part2 : Int
+part2 = 
+    parseData
+        |> List.filterMap listToTuple2 
+        |> List.filterMap parseRoundWithCode
+        |> List.map scoreRound
+        |> List.sum
+        
 rawData : String
 rawData =
     """A Z
