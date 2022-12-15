@@ -13,33 +13,43 @@ type ChangeDirArg
     | In String
 
 
-type Entry
+type DirectoryEntry
     = Directory String Int
     | File String Int
 
 
-type TerminalLine
+type Line
     = ChangeDir ChangeDirArg
     | ListDir
-    | Output Entry
+    | Output DirectoryEntry
 
 
 type alias FileSystem =
-    Dict (List String) (List Entry)
+    Dict (List String) (List DirectoryEntry)
 
 
 type alias Model =
-    { folder : DirectoryPath
-    , entries : FileSystem
+    { cwd : DirectoryPath
+    , directoryContents : FileSystem
     }
 
 
-maxSize : number
+maxSize : Int
 maxSize =
     100000
 
 
-parseLine : List String -> Maybe TerminalLine
+totalSpace : Int
+totalSpace =
+    70000000
+
+
+requiredSpace : Int
+requiredSpace =
+    30000000
+
+
+parseLine : List String -> Maybe Line
 parseLine line =
     case line of
         [ "$", "cd", "/" ] ->
@@ -70,66 +80,66 @@ parseLine line =
 
 
 moveUpDir : List String -> List String
-moveUpDir folder =
-    case folder of
+moveUpDir cwd =
+    case cwd of
         [ "/" ] ->
-            folder
+            cwd
 
         _ ->
-            folder
+            cwd
                 |> List.reverse
                 |> List.drop 1
                 |> List.reverse
 
 
-processTerminalLine : TerminalLine -> Model -> Model
-processTerminalLine tl model =
+processLine : Line -> Model -> Model
+processLine tl model =
     case tl of
         ChangeDir Root ->
-            { model | folder = [ "/" ] }
+            { model | cwd = [ "/" ] }
 
         ChangeDir Up ->
-            { model | folder = moveUpDir model.folder }
+            { model | cwd = moveUpDir model.cwd }
 
         ChangeDir (In name) ->
-            { model | folder = model.folder ++ [ name ] }
+            { model | cwd = model.cwd ++ [ name ] }
 
         ListDir ->
             model
 
-        Output entry ->
+        Output directoryItem ->
             { model
-                | entries = insertEntry entry model
+                | directoryContents = insertEntry directoryItem model
             }
 
 
 init : Model
 init =
-    { folder = [ "/" ]
-    , entries = Dict.empty
+    { cwd = [ "/" ]
+    , directoryContents = Dict.empty
     }
 
 
-insertEntry : Entry -> Model -> FileSystem
-insertEntry entry model =
+insertEntry : DirectoryEntry -> Model -> FileSystem
+insertEntry directoryItem model =
     Dict.update
-        model.folder
-        (updateEntries entry)
-        model.entries
+        model.cwd
+        (updateEntries directoryItem)
+        model.directoryContents
 
 
-updateEntries : Entry -> Maybe (List Entry) -> Maybe (List Entry)
-updateEntries entry maybeList =
+updateEntries : DirectoryEntry -> Maybe (List DirectoryEntry) -> Maybe (List DirectoryEntry)
+updateEntries directoryItem maybeList =
     let
         list =
             Maybe.withDefault [] maybeList
     in
-    Just (list ++ [ entry ])
+    Just (list ++ [ directoryItem ])
 
 
-sumDir : List String -> Dict (List String) Int -> Entry -> Int -> Int
-sumDir path lookup entry acc =
-    case entry of
+sumDir : List String -> Dict (List String) Int -> DirectoryEntry -> Int -> Int
+sumDir path lookup directoryItem acc =
+    case directoryItem of
         Directory name _ ->
             let
                 dirPath =
@@ -145,7 +155,7 @@ sumDir path lookup entry acc =
             acc + size
 
 
-calculateDir : ( List String, List Entry ) -> Dict (List String) Int -> Dict (List String) Int
+calculateDir : ( List String, List DirectoryEntry ) -> Dict (List String) Int -> Dict (List String) Int
 calculateDir ( key, values ) acc =
     let
         total =
@@ -155,21 +165,54 @@ calculateDir ( key, values ) acc =
     Dict.insert key total acc
 
 
+parseData : List Int
 parseData =
     rawData
         |> String.lines
         |> List.map String.words
         |> List.filterMap parseLine
-        |> List.foldl processTerminalLine init
-        |> .entries
+        |> List.foldl processLine init
+        |> .directoryContents
         |> Dict.toList
         |> List.sortBy (\( key, _ ) -> List.length key)
         |> List.reverse
         |> List.foldl calculateDir Dict.empty
         |> Dict.toList
         |> List.map (\( _, size ) -> size)
+
+
+part1 : Int
+part1 =
+    parseData
         |> List.filter (\i -> i < maxSize)
         |> List.sum
+
+
+
+-- part2 : Int
+
+
+part2 : Int
+part2 =
+    let
+        sizes =
+            parseData
+
+        usedSpace =
+            sizes
+                |> List.maximum
+                |> Maybe.withDefault 0
+
+        freeSpace =
+            totalSpace - usedSpace
+
+        targetSizeToDelete =
+            requiredSpace - freeSpace
+    in
+    sizes
+        |> List.filter ((<) targetSizeToDelete)
+        |> List.minimum
+        |> Maybe.withDefault 0
 
 
 rawDataTest : String
