@@ -1,24 +1,209 @@
 module Day07 exposing (..)
 
-import Set
+import Dict exposing (Dict)
 
 
-type TerminalLine = Command String String | Directory String Int | File String Int 
+type alias DirectoryPath =
+    List String
+
+
+type ChangeDirArg
+    = Root
+    | Up
+    | In String
+
+
+type Entry
+    = Directory String Int
+    | File String Int
+
+
+type TerminalLine
+    = ChangeDir ChangeDirArg
+    | ListDir
+    | Output Entry
+
+
+type alias FileSystem =
+    Dict (List String) (List Entry)
+
+
+type alias Model =
+    { folder : DirectoryPath
+    , entries : FileSystem
+    }
+
+
+maxSize : number
+maxSize =
+    100000
+
+
+parseLine : List String -> Maybe TerminalLine
+parseLine line =
+    case line of
+        [ "$", "cd", "/" ] ->
+            Just (ChangeDir Root)
+
+        [ "$", "cd", ".." ] ->
+            Just (ChangeDir Up)
+
+        [ "$", "cd", name ] ->
+            Just (ChangeDir (In name))
+
+        [ "$", "ls" ] ->
+            Just ListDir
+
+        [ "dir", name ] ->
+            Just (Output (Directory name 0))
+
+        [ size, name ] ->
+            case String.toInt size of
+                Just sizeInt ->
+                    Just (Output (File name sizeInt))
+
+                _ ->
+                    Nothing
+
+        _ ->
+            Nothing
+
+
+moveUpDir : List String -> List String
+moveUpDir folder =
+    case folder of
+        [ "/" ] ->
+            folder
+
+        _ ->
+            folder
+                |> List.reverse
+                |> List.drop 1
+                |> List.reverse
+
+
+processTerminalLine : TerminalLine -> Model -> Model
+processTerminalLine tl model =
+    case tl of
+        ChangeDir Root ->
+            { model | folder = [ "/" ] }
+
+        ChangeDir Up ->
+            { model | folder = moveUpDir model.folder }
+
+        ChangeDir (In name) ->
+            { model | folder = model.folder ++ [ name ] }
+
+        ListDir ->
+            model
+
+        Output entry ->
+            { model
+                | entries = insertEntry entry model
+            }
+
+
+init : Model
+init =
+    { folder = [ "/" ]
+    , entries = Dict.empty
+    }
+
+
+insertEntry : Entry -> Model -> FileSystem
+insertEntry entry model =
+    Dict.update
+        model.folder
+        (updateEntries entry)
+        model.entries
+
+
+updateEntries : Entry -> Maybe (List Entry) -> Maybe (List Entry)
+updateEntries entry maybeList =
+    let
+        list =
+            Maybe.withDefault [] maybeList
+    in
+    Just (list ++ [ entry ])
+
+
+sumDir : List String -> Dict (List String) Int -> Entry -> Int -> Int
+sumDir path lookup entry acc =
+    case entry of
+        Directory name _ ->
+            let
+                dirPath =
+                    path ++ [ name ]
+
+                dirSize =
+                    Dict.get dirPath lookup
+                        |> Maybe.withDefault 0
+            in
+            acc + dirSize
+
+        File _ size ->
+            acc + size
+
+
+calculateDir : ( List String, List Entry ) -> Dict (List String) Int -> Dict (List String) Int
+calculateDir ( key, values ) acc =
+    let
+        total =
+            values
+                |> List.foldl (sumDir key acc) 0
+    in
+    Dict.insert key total acc
+
 
 parseData =
     rawData
-    |> String.lines
-    |> List.map String.words 
-    |> List.map parseLine
+        |> String.lines
+        |> List.map String.words
+        |> List.filterMap parseLine
+        |> List.foldl processTerminalLine init
+        |> .entries
+        |> Dict.toList
+        |> List.sortBy (\( key, _ ) -> List.length key)
+        |> List.reverse
+        |> List.foldl calculateDir Dict.empty
+        |> Dict.toList
+        |> List.map (\( _, size ) -> size)
+        |> List.filter (\i -> i < maxSize)
+        |> List.sum
 
-parseLine : List String -> TerminalLine 
-parseLine line =
-    case line of
-        ["$","cd","/"] -> Command "cd" "/"
+
+rawDataTest : String
+rawDataTest =
+    """ 
+$ cd /
+$ ls
+dir a
+14848514 b.txt
+8504156 c.dat
+dir d
+$ cd a
+$ ls
+dir e
+29116 f
+2557 g
+62596 h.lst
+$ cd e
+$ ls
+584 i
+$ cd ..
+$ cd ..
+$ cd d
+$ ls
+4060174 j
+8033020 d.log
+5626152 d.ext
+7214296 k
+"""
 
 
 rawData : String
-rawData = """
+rawData =
+    """
 $ cd /
 $ ls
 dir fpljqj

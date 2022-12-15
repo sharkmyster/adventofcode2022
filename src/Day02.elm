@@ -21,8 +21,8 @@ listToTuple2 list =
 
         _ ->
             Nothing
-            
-            
+
+
 handMap : String -> Maybe Hand
 handMap code =
     case code of
@@ -48,7 +48,7 @@ handMap code =
             Nothing
 
 
-getIntendedOutcome: String -> Maybe Outcome
+getIntendedOutcome : String -> Maybe Outcome
 getIntendedOutcome instruction =
     case instruction of
         "X" ->
@@ -101,6 +101,7 @@ moveCalculator round =
         ( _, _ ) ->
             Tuple.first round
 
+
 calculateWin : ( Hand, Hand ) -> Outcome
 calculateWin round =
     case round of
@@ -124,7 +125,8 @@ calculateWin round =
 
         ( _, _ ) ->
             Draw
-            
+
+
 scoreRound : ( Hand, Hand ) -> Int
 scoreRound ( opponentHand, yourHand ) =
     let
@@ -144,33 +146,42 @@ scoreRound ( opponentHand, yourHand ) =
         Lose ->
             handValue
 
+
 parseRound : List String -> Maybe ( Hand, Hand )
 parseRound item =
-    let 
-        round = item
-            |> List.map handMap 
+    let
+        round =
+            item
+                |> List.map handMap
     in
     case round of
-        [Just a, Just b] -> Just (a , b)
-        _ -> Nothing
-        
+        [ Just a, Just b ] ->
+            Just ( a, b )
+
+        _ ->
+            Nothing
 
 
-parseRoundWithCode : (String, String) -> Maybe ( Hand, Hand )
-parseRoundWithCode (them, us) =
+parseRoundWithCode : ( String, String ) -> Maybe ( Hand, Hand )
+parseRoundWithCode ( them, us ) =
     let
-       opponentHand = handMap them
-       intendedOutcome = getIntendedOutcome us 
+        opponentHand =
+            handMap them
+
+        intendedOutcome =
+            getIntendedOutcome us
     in
-    case (opponentHand, intendedOutcome )  of
-        ( Just theirHand, Just outcome) -> 
+    case ( opponentHand, intendedOutcome ) of
+        ( Just theirHand, Just outcome ) ->
             let
-                necessaryMove = moveCalculator (theirHand, outcome)
+                necessaryMove =
+                    moveCalculator ( theirHand, outcome )
             in
-                Just (theirHand, necessaryMove )
-            
-        _ -> Nothing
-        
+            Just ( theirHand, necessaryMove )
+
+        _ ->
+            Nothing
+
 
 parseData : List (List String)
 parseData =
@@ -181,20 +192,22 @@ parseData =
 
 
 part1 : Int
-part1 = 
+part1 =
     parseData
         |> List.filterMap parseRound
         |> List.map scoreRound
         |> List.sum
 
+
 part2 : Int
-part2 = 
+part2 =
     parseData
-        |> List.filterMap listToTuple2 
+        |> List.filterMap listToTuple2
         |> List.filterMap parseRoundWithCode
         |> List.map scoreRound
         |> List.sum
-        
+
+
 rawData : String
 rawData =
     """A Z
