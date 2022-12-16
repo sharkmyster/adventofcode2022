@@ -9,10 +9,6 @@ type Visibility
     | Hidden
 
 
-type alias Height =
-    String
-
-
 type Tree
     = Tree Visibility Int
 
