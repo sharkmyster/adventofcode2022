@@ -13,9 +13,18 @@ type Tree
     = Tree Visibility Int
 
 
+type ScenicTree
+    = ScenicTree (List Int) Int
+
+
 initialiseTree : Int -> Tree
 initialiseTree i =
     Tree Hidden i
+
+
+initialiseScenicTree : Int -> ScenicTree
+initialiseScenicTree i =
+    ScenicTree [] i
 
 
 setVisible : Tree -> Tree
@@ -53,18 +62,84 @@ identifyVisibleTrees start end =
                 identifyVisibleTrees (start ++ [ head ]) tail
 
 
-parseData : List (List Tree)
-parseData =
+getHeight : ScenicTree -> Int
+getHeight (ScenicTree _ h) =
+    h
+
+
+updateScenicScore : Int -> ScenicTree -> ScenicTree
+updateScenicScore val (ScenicTree s i) =
+    ScenicTree (val :: s) i
+
+
+doScenicScore : List ScenicTree -> List ScenicTree -> List ScenicTree
+doScenicScore start end =
+    case end of
+        [] ->
+            start
+
+        head :: tail ->
+            let
+                w =
+                    start
+                        |> List.reverse
+                        |> calcScore head
+
+                e =
+                    tail
+                        |> calcScore head
+
+                new =
+                    head
+                        |> updateScenicScore w
+                        |> updateScenicScore e
+            in
+            doScenicScore (start ++ [ new ]) tail
+
+
+calcScore : ScenicTree -> List ScenicTree -> Int
+calcScore (ScenicTree _ headHeight) list =
+    case list of
+        [] ->
+            0
+
+        _ ->
+            list
+                |> LE.stoppableFoldl
+                    (\(ScenicTree _ currentHeight) acc ->
+                        if currentHeight >= headHeight then
+                            LE.Stop (acc + 1)
+
+                        else
+                            LE.Continue (acc + 1)
+                    )
+                    0
+
+
+part2 : Int
+part2 =
+    rawData
+        |> String.trim
+        |> String.lines
+        |> List.map (String.split "")
+        |> List.map (\l -> l |> List.filterMap String.toInt |> List.map initialiseScenicTree)
+        |> List.map (doScenicScore [])
+        |> LE.transpose
+        |> List.map (doScenicScore [])
+        |> LE.transpose
+        |> List.concat
+        |> List.map (\(ScenicTree s _) -> List.product s)
+        |> List.maximum
+        |> Maybe.withDefault 0
+
+
+part1 : Int
+part1 =
     rawDataTest
         |> String.trim
         |> String.lines
         |> List.map (String.split "")
         |> List.map (\l -> l |> List.filterMap String.toInt |> List.map initialiseTree)
-
-
-part1 : Int
-part1 =
-    parseData
         |> List.map (identifyVisibleTrees [])
         |> LE.transpose
         |> List.map (identifyVisibleTrees [])
@@ -74,17 +149,19 @@ part1 =
         |> List.length
 
 
-
--- part2 : Int
-
-
-part2 : Int
-part2 =
-    0
-
-
 rawDataTest : String
 rawDataTest =
+    """
+30373
+25512
+65332
+33549
+35390
+"""
+
+
+rawData : String
+rawData =
     """ 
 222100000013112132123310430431410000421233203434334433324302430012114211021123030010201312000120201
 101021021033011112103044112003343322403423454241342342345211525113333240020143443122030210310022011
@@ -186,9 +263,3 @@ rawDataTest =
 221021131310123213123044244400331522512444434344354343132442132331145324334003431424001200033011112
 102201030320220211144211104323434023533353133112145253453525542112011403201223032223120103003122001
 """
-
-
-rawData : String
-rawData =
-    """
-    """
