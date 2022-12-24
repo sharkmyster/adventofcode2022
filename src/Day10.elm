@@ -1,10 +1,13 @@
 module Day10 exposing (..)
 
+import List.Extra as LE
+
 
 type alias Model =
     { registerX : Int
     , cycleCount : Int
     , signalStrengths : List Int
+    , pixels : List Char
     }
 
 
@@ -12,6 +15,7 @@ init =
     { registerX = 1
     , cycleCount = 1
     , signalStrengths = []
+    , pixels = []
     }
 
 
@@ -43,8 +47,15 @@ encode command acc =
             identity :: acc
 
 
+cases : List number
 cases =
     [ 20, 60, 100, 140, 180, 220 ]
+
+
+isTouching : Int -> Int -> Bool
+isTouching crtPos xPos =
+    [ xPos - 1, xPos, xPos + 1 ]
+        |> List.any ((==) crtPos)
 
 
 computeInstruction : (Int -> Int) -> Model -> Model
@@ -56,15 +67,26 @@ computeInstruction command model =
 
             else
                 model.signalStrengths
+
+        crtPos =
+            modBy 40 (model.cycleCount - 1)
+
+        pixel =
+            if isTouching crtPos model.registerX then
+                '#'
+
+            else
+                '.'
     in
     { model
         | signalStrengths = newStrengths
         , registerX = command model.registerX
         , cycleCount = model.cycleCount + 1
+        , pixels = pixel :: model.pixels
     }
 
 
-part1 =
+processInput =
     rawData
         |> String.lines
         |> List.map String.words
@@ -72,8 +94,22 @@ part1 =
         |> List.foldl encode []
         |> List.reverse
         |> List.foldl computeInstruction init
+
+
+part1 : Int
+part1 =
+    processInput
         |> .signalStrengths
         |> List.sum
+
+
+part2 : List String
+part2 =
+    processInput
+        |> .pixels
+        |> List.reverse
+        |> LE.groupsOf 40
+        |> List.map String.fromList
 
 
 rawDataTest : String

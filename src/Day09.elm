@@ -48,6 +48,7 @@ createMove direction distance =
     Move direction distance
 
 
+pairs : Int -> Int -> List ( ( Int, Int ), Int )
 pairs x y =
     List.range 0 x
         |> List.map (\xx -> ( ( xx, y ), 0 ))
@@ -96,14 +97,10 @@ left ( a, b ) =
 
 type alias Model =
     { head : Coordinate
-    , tail : Coordinate
+    , tail : List Coordinate
     , tailMoves : Set.Set Coordinate
+    , history : List (List Coordinate)
     }
-
-
-isAdjacent : Coordinate -> Coordinate -> Bool
-isAdjacent ( x1, y1 ) ( x2, y2 ) =
-    abs (x2 - x1) <= 1 && abs (y2 - y1) <= 1
 
 
 doSteps : Model -> (Model -> Model) -> Int -> Model
@@ -116,27 +113,37 @@ doSteps model fn steps =
             doSteps (fn model) fn (steps - 1)
 
 
+foldTail follower ( leader, list ) =
+    let
+        newPostin =
+            calculateMove leader follower
+    in
+    ( newPostin, newPostin :: list )
+
+
 move : (Coordinate -> Coordinate) -> Model -> Model
 move moveFn model =
     let
-        oldHead =
-            model.head
-
         newHead =
             moveFn model.head
 
-        isBeside =
-            isAdjacent newHead model.tail
+        ( lastTail, newTail ) =
+            List.foldl foldTail ( newHead, [] ) model.tail
     in
-    if isBeside then
-        { model | head = newHead }
+    { model
+        | head = newHead
+        , tail = List.reverse newTail
+        , tailMoves = Set.insert lastTail model.tailMoves
+    }
 
-    else
-        { model
-            | head = newHead
-            , tail = oldHead
-            , tailMoves = Set.insert oldHead model.tailMoves
-        }
+
+recordHistory : Model -> Model
+recordHistory model =
+    let
+        lastSequence =
+            model.head :: model.tail
+    in
+    { model | history = lastSequence :: model.history }
 
 
 doMove : Move -> Model -> Model
@@ -157,67 +164,12 @@ doMove (Move direction steps) model =
                     move right
     in
     doSteps model directionFn steps
+        |> recordHistory
 
 
-
--- part1 : Int
-
-
-part1 =
-    let
-        instructions =
-            rawDataTest
-                |> String.trim
-                |> String.lines
-                |> List.map String.words
-                |> List.filterMap parseInstruction
-
-        start =
-            ( 0, 0 )
-
-        initBoard =
-            { head = start
-            , tail = start
-            , tailMoves = Set.singleton ( 0, 0 )
-            }
-    in
-    instructions
-        -- |> List.take 1
-        |> List.foldl doMove initBoard
-        |> .tailMoves
-        -- |> Debug.log ">"
-        |> Set.size
-
-
-analyse =
-    let
-        instructions =
-            rawData
-                |> String.trim
-                |> String.lines
-                |> List.map String.words
-                |> List.filterMap parseInstruction
-                |> List.filter
-                    (\l ->
-                        case l of
-                            Move Up _ ->
-                                True
-
-                            _ ->
-                                False
-                    )
-                |> List.map
-                    (\l ->
-                        case l of
-                            Move Up n ->
-                                n
-
-                            _ ->
-                                0
-                    )
-                |> List.sum
-    in
-    instructions
+diffs : Coordinate -> Coordinate -> Coordinate
+diffs ( tx, ty ) ( fx, fy ) =
+    ( fx - tx, fy - ty )
 
 
 
@@ -230,23 +182,89 @@ analyse =
 -- |> List.filter ((/=) 0)
 -- |> List.length
 -- |> (+) 1
+-- (4,3) - (2,2)  = (-2, -1)    -> (3,3) tx + 1
+-- (4,3) - (2,4)  = (-2,  1)    -> (3,3)
+-- (4,3) - (2,3)  = (-2,  0)    -> (3,3)
+-- (4,3) - (6,4)  = ( 2,  1)    -> (5,3) tx - 1
+-- (4,3) - (6,2)  = ( 2, -1)    -> (5,3)
+-- (4,3) - (6,3)  = ( 2,  0)    -> (5,3)
+-- (4,3) - (3,1)  = (-1, -2)    -> (4,2) ty - 1
+-- (4,3) - (5,1)  = ( 1, -2)    -> (4,2)
+-- (4,3) - (4,1)  = ( 0, -2)    -> (4,2)
+-- (4,3) - (3,5) = (-1,  2)    -> (4,4) ty + 1
+-- (4,3) - (5,5) = ( 1,  2)    -> (4,4)
+-- [(2,2), (2,4), (2,3),(6,4),(6,2),(6,3),(3,1),(5,1),(4,1),(3,5),(5,5),(4,5)]-- (4,3) - (4,5) = ( 0,  2)    -> (4,4)
+
+
+calculateMove : Coordinate -> Coordinate -> Coordinate
+calculateMove (( tx, ty ) as target) follower =
+    let
+        ( x, y ) =
+            diffs target follower
+    in
+    if x == -2 && y == -2 then
+        ( tx - 1, ty - 1 )
+
+    else if x == -2 && y == 2 then
+        ( tx - 1, ty + 1 )
+
+    else if x == 2 && y == 2 then
+        ( tx + 1, ty + 1 )
+
+    else if x == 2 && y == -2 then
+        ( tx + 1, ty - 1 )
+
+    else if x == -2 then
+        ( tx - 1, ty )
+
+    else if x == 2 then
+        ( tx + 1, ty )
+
+    else if y == -2 then
+        ( tx, ty - 1 )
+
+    else if y == 2 then
+        ( tx, ty + 1 )
+
+    else
+        follower
+
+
+part1 =
+    let
+        instructions =
+            rawData
+                |> String.trim
+                |> String.lines
+                |> List.map String.words
+                |> List.filterMap parseInstruction
+
+        start =
+            ( 0, 0 )
+
+        initBoard =
+            { head = start
+            , tail = List.repeat 9 ( 0, 0 )
+            , tailMoves = Set.singleton ( 0, 0 )
+            , history = []
+            }
+    in
+    instructions
+        -- |> List.take 1
+        |> List.foldl doMove initBoard
+
+
+
+-- |> Debug.log ">"
+-- |> .tailMoves
+-- -- |> Debug.log ">"
+-- |> Set.size
 
 
 part2 =
     rawDataTest
         |> String.trim
         |> String.lines
-
-
-printIt list =
-    list
-        |> LE.groupsOf 6
-        |> List.reverse
-        |> List.map
-            (\group ->
-                group
-                    |> Debug.log ">"
-            )
 
 
 rawDataTest : String
@@ -260,6 +278,20 @@ R 4
 D 1
 L 5
 R 2
+"""
+
+
+rawDataTest2 : String
+rawDataTest2 =
+    String.trim """
+R 5
+U 8
+L 8
+D 3
+R 17
+D 10
+L 25
+U 20
 """
 
 
